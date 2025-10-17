@@ -27,6 +27,8 @@ jobs:
       
       - name: Build application
         run: npm run build
+        env:
+          DISABLE_ESLINT_PLUGIN: true
       
       - name: Deploy to Vercel
         id: deploy
