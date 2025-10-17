@@ -62,7 +62,7 @@ jobs:
         working-directory: automation
         run: npm test
         env:
-          BASE_URL: ${{ needs.deploy.outputs.deployment-url || secrets.PRODUCTION_URL || 'https://www.saucedemo.com' }}
+          BASE_URL: ${{ needs.deploy.outputs.deployment-url || secrets.PRODUCTION_URL }}
       
       - name: Upload test results
         if: always()
