@@ -1,4 +1,4 @@
-name: E2E Tests
+name: Deploy and Test
 
 on:
   push:
@@ -8,7 +8,26 @@ on:
   workflow_dispatch:
 
 jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      deployment-url: ${{ steps.vercel-deploy.outputs.url }}
+    
+    steps:
+      - name: Checkout web app code
+        uses: actions/checkout@v3
+      
+      - name: Deploy to Vercel
+        id: vercel-deploy
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+
   test:
+    needs: deploy
     runs-on: ubuntu-latest
     
     steps:
@@ -43,7 +62,7 @@ jobs:
         working-directory: automation
         run: npm test
         env:
-          BASE_URL: ${{ secrets.PRODUCTION_URL || 'https://www.saucedemo.com' }}
+          BASE_URL: ${{ needs.deploy.outputs.deployment-url || secrets.PRODUCTION_URL || 'https://www.saucedemo.com' }}
       
       - name: Upload test results
         if: always()
