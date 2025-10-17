@@ -11,6 +11,7 @@ import "./Cart.css";
 
 const Cart = ({ history }) => {
   const contents = ShoppingCart.getCartContents();
+  const text= 'hello';
 
   return (
     <div id="page_wrapper" className="page_wrapper">
