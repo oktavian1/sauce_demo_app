@@ -25,7 +25,7 @@ jobs:
       
       - name: Install automation dependencies
         working-directory: automation
-        run: npm ci
+        run: npm install
       
       - name: Install Playwright browsers
         working-directory: automation
