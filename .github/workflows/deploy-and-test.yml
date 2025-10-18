@@ -68,7 +68,20 @@ jobs:
         env:
           BASE_URL: ${{ needs.deploy.outputs.deployment-url || secrets.PRODUCTION_URL }}
       
-      - name: Upload test results
+      - name: Generate Allure Report
+        if: always()
+        working-directory: automation
+        run: npm run allure:generate
+      
+      - name: Upload Allure Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: automation/allure-report/
+          retention-days: 30
+      
+      - name: Upload Playwright HTML Report (backup)
         if: always()
         uses: actions/upload-artifact@v4
         with:
