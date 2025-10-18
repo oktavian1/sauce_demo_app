@@ -7,6 +7,10 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+env:
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+  SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -125,3 +129,108 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+  
+  notify:
+    needs: [deploy, test, deploy-report]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name != 'pull_request'
+    
+    steps:
+      - name: Determine workflow status
+        id: status
+        run: |
+          if [ "${{ needs.test.result }}" == "failure" ] || [ "${{ needs.deploy.result }}" == "failure" ]; then
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "color=#dc3545" >> $GITHUB_OUTPUT
+            echo "emoji=🔴" >> $GITHUB_OUTPUT
+          elif [ "${{ needs.test.result }}" == "success" ] && [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "color=#28a745" >> $GITHUB_OUTPUT
+            echo "emoji=✅" >> $GITHUB_OUTPUT
+          else
+            echo "status=cancelled" >> $GITHUB_OUTPUT
+            echo "color=#6c757d" >> $GITHUB_OUTPUT
+            echo "emoji=⚠️" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Send Slack notification
+        if: env.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "${{ steps.status.outputs.emoji }} E2E Test Results: ${{ steps.status.outputs.status }}",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "${{ steps.status.outputs.emoji }} E2E Tests - ${{ steps.status.outputs.status == 'success' && 'Passed' || 'Failed' }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n<${{ github.event.repository.html_url }}|${{ github.repository }}>"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Branch:*\n`${{ github.ref_name }}`"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Commit:*\n<${{ github.event.head_commit.url }}|${{ github.event.head_commit.message }}>"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Author:*\n${{ github.event.head_commit.author.name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Deploy:*\n${{ needs.deploy.result }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Tests:*\n${{ needs.test.result }}"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "📊 <https://oktavian1.github.io/sauce_demo_app/|View Allure Report> | 🔗 <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow Run>"
+                  }
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "Triggered by ${{ github.event_name }} | Run #${{ github.run_number }}"
+                    }
+                  ]
+                }
+              ],
+              "attachments": [
+                {
+                  "color": "${{ steps.status.outputs.color }}",
+                  "fields": [
+                    {
+                      "title": "Status",
+                      "value": "${{ steps.status.outputs.status }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Environment",
+                      "value": "Production",
+                      "short": true
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
